@@ -105,3 +105,7 @@ screen -r otplock # or tmux attach -t otplock
 ## Disclaimer
 
 This tool is provided for educational and ethical purposes only. Misuse of this tool for illegal activities is strictly prohibited. The developer is not responsible for any misuse or damage caused by this tool.
+
+
+
+
