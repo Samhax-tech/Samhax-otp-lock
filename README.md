@@ -26,32 +26,24 @@ pkg install nodejs npm
 
 ## Setup
 
-1.  **Clone the repository (or extract the provided zip file):**
+1.  **Clone the repository:**
 
     ```bash
-    git clone <repository_url>
-    cd RishiLockotp
-    ```
-
-    If you received a zip file, extract it and navigate into the `RishiLockopt` directory:
-
-    ```bash
-    unzip RishiLockotp.zip
-    cd RishiLockotp/RishiLockopt
+    git clone https://github.com/Samhax-tech/Samhax-otp-lock.git
+    cd Samhax-otp-lock
     ```
 
 2.  **Install Node.js dependencies:**
 
-    Navigate to the `RishiLockopt` directory (if you are not already there) and install the required npm packages:
+    Navigate to the `Samhax-otp-lock` directory (if you are not already there) and install the required npm packages:
 
     ```bash
-    cd RishiLockopt
-    npm install
+npm install
     ```
 
 ## Running the Script
 
-To run the script, navigate to the `RishiLockopt` directory and execute the `index.js` file using Node.js.
+To run the script, navigate to the `Samhax-otp-lock` directory and execute the `index.js` file using Node.js.
 
 ### Running Persistently
 
@@ -113,7 +105,3 @@ screen -r otplock # or tmux attach -t otplock
 ## Disclaimer
 
 This tool is provided for educational and ethical purposes only. Misuse of this tool for illegal activities is strictly prohibited. The developer is not responsible for any misuse or damage caused by this tool.
-
-
-
-
