@@ -14,7 +14,7 @@ const start = async () => {
 
   const spam = makeWaSocket({
     auth: state,
-    mobile: true,
+
     logger: pino({ level: 'silent' })
   })
   //console.clear();
