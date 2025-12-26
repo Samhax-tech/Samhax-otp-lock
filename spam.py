@@ -1,240 +1,301 @@
-#!/usr/bin/env python3
-import time
-import argparse
+#!/data/data/com.termux/files/usr/bin/python3
+# rD4DDY SAMHAX BAN TOOL v2.0
+# Owner: Samhax
+
 import os
-import json
-import random
-import signal
 import sys
-from datetime import datetime
+import time
+import requests
+import argparse
+import json
 import threading
+from typing import List, Dict
+from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor
 
-# Offensive message list
-OFFENSIVE_MESSAGES = [
-    "KUMAIL TERI MAA KI CHUT",
-    "KUMAIL TERI RANDI MAA KA BHOSDA",
-    "KUMAIL KI MAA DA KALA FUDDA",
-    "KUMAIL KISI GASHTI HUN DAYA TERI MAA DA FUDDA",
-    "KUMAIL KI MAA KA FUDDA SCUCESSFULLY PASTE",
-    "DELIVERY BOY KUMAIL KI MAA KO CHOD K GHORI BNA DUN",
-    "KUMAIL KI RANDI MAA KO CHUD CHUD K GASHTI BNA DUN",
-    "KUMAIL KI LOADER BAJI KI MAAA KI CHUT",
-    "KUMAIL DI PENN DA BHOSDA",
-    "KUMAIL TERI MAA RANDI KO QABAR MAI CHODUN"
-]
+# Colors
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+RESET = "\033[0m"
 
-class WhatsAppConnection:
-    """Handles WhatsApp connection and messaging"""
-    
+# Global constants
+API_VERSION = "v19.0"
+
+def clear_screen():
+    """Clear terminal screen"""
+    os.system('clear')
+
+def banner():
+    """Display tool banner"""
+    clear_screen()
+    print(f"""
+{RED}
+╔═════════════════════════════════════════════════╗
+║                                                 ║
+║           rD4DDY SAMHAX BAN TOOL v2.0          ║
+║                                                 ║
+║           Owner: Samhax                         ║
+║                                                 ║
+╚═════════════════════════════════════════════════╝
+{RESET}
+""")
+
+class ProxyManager:
     def __init__(self):
-        self.connected = False
-        self.token = None
-        
-    def connect(self, phone_number):
-        """Connect to WhatsApp using phone number"""
-        print(f"Connecting to WhatsApp using number: {phone_number}")
-        # Simulate connection process
-        time.sleep(1)
-        self.connected = True
-        self.token = f"session_{phone_number}_token"
-        print(f"Connected successfully! Token: {self.token}")
-        return True
-        
-    def send_message(self, recipient, message):
-        """Send message through WhatsApp connection"""
-        if not self.connected:
-            print("Not connected to WhatsApp!")
-            return False
+        self.proxies = []
+        self.current_idx = 0
+        self.failed_proxies = set()
+        self.lock = threading.Lock()
+    
+    def load_proxies(self, proxy_file: str):
+        """Load proxies from file"""
+        try:
+            with open(proxy_file, 'r') as f:
+                for line in f:
+                    proxy = line.strip()
+                    if proxy and not proxy.startswith('#'):
+                        self.proxies.append(proxy)
+            print(f"{GREEN}[+] Loaded {len(self.proxies)} proxies{RESET}")
+        except Exception as e:
+            print(f"{RED}[-] Error loading proxies: {e}{RESET}")
+    
+    def get_next(self) -> Dict:
+        """Get next available proxy"""
+        if not self.proxies:
+            return {}
             
-        print(f"Sending '{message}' to {recipient} via {self.token}")
-        # Simulate message sending
-        time.sleep(0.5)
-        return True
+        with self.lock:
+            while self.current_idx < len(self.proxies):
+                proxy = self.proxies[self.current_idx]
+                self.current_idx = (self.current_idx + 1) % len(self.proxies)
+                
+                if proxy not in self.failed_proxies:
+                    try:
+                        test_url = "http://httpbin.org/ip"
+                        response = requests.get(test_url, proxies={"http": proxy, "https": proxy}, timeout=5)
+                        if response.status_code == 200:
+                            return {"http": proxy, "https": proxy}
+                    except:
+                        self.failed_proxies.add(proxy)
+                        continue
         
-    def disconnect(self):
-        """Disconnect from WhatsApp"""
-        self.connected = False
-        self.token = None
-        print("Disconnected from WhatsApp")
+        return {}
 
-
-class WhatsAppGroupSpammer:
-    def __init__(self, config_file="group_spam_config.json"):
-        self.config_file = config_file
-        self.load_config()
-        self.running = False
-        self.connection = WhatsAppConnection()
+class MenuSystem:
+    def __init__(self):
+        self.proxy_manager = ProxyManager()
+        self.access_token = ""
+        self.phone_numbers = []
+        self.options = {
+            "1": ("Check Number Status", self.check_number_status),
+            "2": ("Report Single Number", self.report_single_number),
+            "3": ("Mass Report Numbers", self.mass_report_numbers),
+            "4": ("Load Proxies", self.load_proxies),
+            "5": ("Load Phone Numbers", self.load_phone_numbers),
+            "6": ("Set Access Token", self.set_access_token),
+            "7": ("Show Settings", self.show_settings),
+            "0": ("Exit", self.exit_tool)
+        }
+    
+    def show_menu(self):
+        """Display main menu"""
+        banner()
+        print(f"{BLUE}Available Options:{RESET}")
+        for key, (desc, _) in self.options.items():
+            print(f"{YELLOW}{key}. {desc}{RESET}")
+        print(f"{BLUE}\nEnter option number: {RESET}", end="")
+    
+    def load_proxies(self):
+        """Load proxies from file"""
+        proxy_file = input("Enter proxy file path: ")
+        self.proxy_manager.load_proxies(proxy_file)
+    
+    def load_phone_numbers(self):
+        """Load phone numbers from file"""
+        phone_file = input("Enter phone numbers file path: ")
+        try:
+            with open(phone_file, 'r') as f:
+                self.phone_numbers = [line.strip() for line in f if line.strip()]
+            print(f"{GREEN}[+] Loaded {len(self.phone_numbers)} phone numbers{RESET}")
+        except Exception as e:
+            print(f"{RED}[-] Error loading phone numbers: {e}{RESET}")
+    
+    def set_access_token(self):
+        """Set access token"""
+        self.access_token = input("Enter access token: ")
+        print(f"{GREEN}[+] Access token set{RESET}")
+    
+    def show_settings(self):
+        """Show current settings"""
+        banner()
+        print(f"{BLUE}Current Settings:{RESET}")
+        print(f"Access Token: {self.access_token[:10]}..." if self.access_token else "Not set")
+        print(f"Proxies: {len(self.proxy_manager.proxies)} loaded")
+        print(f"Phone Numbers: {len(self.phone_numbers)} loaded")
+        input("\nPress Enter to continue...")
+    
+    def check_number_status(self):
+        """Check status of single number"""
+        phone_id = input("Enter phone number ID: ")
+        if not phone_id:
+            print(f"{RED}[-] Phone number required{RESET}")
+            return
+            
+        status = self._check_number_status(phone_id)
+        print(f"\nStatus: {status.get('status', 'Unknown')}")
+        print(f"Message: {status.get('message', 'N/A')}")
+        input("\nPress Enter to continue...")
+    
+    def _check_number_status(self, phone_id: str) -> Dict:
+        """Internal method to check number status"""
+        url = f"https://graph.facebook.com/{API_VERSION}/{phone_id}"
         
-    def load_config(self):
-        """Load configuration from JSON file"""
-        default_config = {
-            "phone_number": "+1234567890",  # Default phone number
-            "groups": [
-                {"id": "120363424498594173", "type": "group"},
-                {"id": "39681437773989@lid", "type": "chat"}
-            ],
-            "schedule": {
-                "delay": 30,
-                "repeating": True,
-                "interval": 3600,
-                "random_messages": False,
-                "max_messages": 100
-            },
-            "history": []
+        headers = {
+            "Authorization": f"Bearer {self.access_token}"
         }
         
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, 'r') as f:
-                    self.config = json.load(f)
-            except json.JSONDecodeError:
-                print("Invalid config file, using defaults")
-                self.config = default_config
+        try:
+            proxy = self.proxy_manager.get_next()
+            if not proxy:
+                return {"error": "No proxies available"}
+                
+            response = requests.get(
+                url,
+                headers=headers,
+                proxies=proxy,
+                timeout=30
+            )
+            
+            data = response.json()
+            
+            # Check ban status from response
+            if 'error' in data:
+                error_code = data['error'].get('code')
+                if error_code == 100:
+                    return {"status": "temporary_ban", "message": "Temporary restriction"}
+                elif error_code == 102:
+                    return {"status": "permanent_ban", "message": "Permanent ban"}
+                elif error_code == 103:
+                    return {"status": "suspicious_activity", "message": "Suspicious activity detected"}
+                    
+            # Check for active status
+            if data.get('status') == 'active':
+                return {"status": "active", "message": "Number is active"}
+                
+            return {"status": "unknown", "message": "Cannot determine status"}
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def report_single_number(self):
+        """Report single number"""
+        phone_id = input("Enter phone number ID: ")
+        if not phone_id:
+            print(f"{RED}[-] Phone number required{RESET}")
+            return
+            
+        status = self._check_number_status(phone_id)
+        if status.get("status") in ["permanent_ban", "temporary_ban"]:
+            print(f"{YELLOW}[!] Skipping banned number{RESET}")
+            return
+            
+        result = self._report_number(phone_id)
+        print(f"\nResult: {'Success' if result.get('success') else 'Failed'}")
+        if result.get('success'):
+            print(f"Response: {result.get('response')}")
         else:
-            self.config = default_config
-            self.save_config()
-            
-    def save_config(self):
-        """Save current configuration to file"""
-        with open(self.config_file, 'w') as f:
-            json.dump(self.config, f, indent=4)
-            
-    def set_phone_number(self, phone_number):
-        """Set the phone number to use for connection"""
-        self.config["phone_number"] = phone_number
-        self.save_config()
-        print(f"Phone number set to: {phone_number}")
-        
-    def set_schedule(self, delay=None, repeating=None, interval=None, 
-                     random_messages=None, max_messages=None):
-        """Configure sending schedule"""
-        if delay is not None:
-            self.config["schedule"]["delay"] = delay
-        if repeating is not None:
-            self.config["schedule"]["repeating"] = repeating
-        if interval is not None:
-            self.config["schedule"]["interval"] = interval
-        if random_messages is not None:
-            self.config["schedule"]["random_messages"] = random_messages
-        if max_messages is not None:
-            self.config["schedule"]["max_messages"] = max_messages
-            
-        self.save_config()
-        print(f"Schedule updated: Delay={delay}, Repeating={repeating}, "
-              f"Interval={interval}, Random={random_messages}, Max={max_messages}")
-        
-    def stop_spam(self):
-        """Stop the spamming process"""
-        self.running = False
-        print("\nStopping spamming...")
-        
-    def start_spam(self):
-        """Start the spamming process"""
-        if not self.config["groups"]:
-            print("No groups configured!")
+            print(f"Error: {result.get('error', 'Unknown error')}")
+        input("\nPress Enter to continue...")
+    
+    def mass_report_numbers(self):
+        """Mass report numbers"""
+        if not self.phone_numbers:
+            print(f"{RED}[-] No phone numbers loaded{RESET}")
             return
             
-        print(f"Starting group spam bot with {len(self.config['groups'])} targets")
-        print(f"Using phone number: {self.config['phone_number']}")
-        print(f"Delay: {self.config['schedule']['delay']} seconds")
-        print(f"Repeating: {self.config['schedule']['repeating']}")
-        print(f"Random messages: {self.config['schedule']['random_messages']}")
-        print(f"Max messages per target: {self.config['schedule']['max_messages']}")
+        delay = float(input("Enter delay between requests (seconds): ") or "1.0")
         
-        # Register signal handler for graceful shutdown
-        signal.signal(signal.SIGINT, lambda s, f: self.stop_spam())
+        print(f"{BLUE}[+] Starting mass report of {len(self.phone_numbers)} numbers{RESET}")
+        results = []
         
-        # Connect to WhatsApp
-        print("\nConnecting to WhatsApp...")
-        if not self.connection.connect(self.config["phone_number"]):
-            print("Failed to connect to WhatsApp!")
-            return
-            
-        self.running = True
-        message_count = 0
-        
-        while self.running:
-            for target in self.config["groups"]:
-                if message_count >= self.config["schedule"]["max_messages"]:
-                    print(f"Max messages ({self.config['schedule']['max_messages']}) reached, stopping")
-                    self.stop_spam()
-                    break
-                    
-                # Select message based on random setting
-                if self.config["schedule"]["random_messages"]:
-                    message = random.choice(OFFENSIVE_MESSAGES)
-                else:
-                    # Cycle through messages
-                    message_index = len(self.config["history"]) % len(OFFENSIVE_MESSAGES)
-                    message = OFFENSIVE_MESSAGES[message_index]
-                    
-                print(f"\nSending to {target['type']} {target['id']}: {message}")
-                if not self.connection.send_message(target["id"], message):
-                    print("Failed to send message, continuing...")
-                    continue
-                    
-                # Update history
-                self.config["history"].append({
-                    "message": message,
-                    "target_id": target["id"],
-                    "target_type": target["type"],
-                    "timestamp": datetime.now().isoformat()
-                })
-                message_count += 1
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+            for phone_id in self.phone_numbers:
+                future = executor.submit(self._report_number, phone_id)
+                futures.append((future, phone_id))
                 
-            # Check if we should stop
-            if not self.config["schedule"]["repeating"]:
-                break
-                
-            # Wait for next cycle
-            print(f"\nWaiting {self.config['schedule']['interval']} seconds...")
-            time.sleep(self.config["schedule"]["interval"])
+                # Add delay between requests
+                time.sleep(delay)
             
-        # Disconnect from WhatsApp
-        self.connection.disconnect()
-        print("Spamming completed")
+            for future, phone_id in futures:
+                result = future.result()
+                results.append(result)
+                print(f"{BLUE}[+] Reported {phone_id}: {'Success' if result.get('success') else 'Failed'}{RESET}")
+        
+        # Save results
+        with open("report_results.json", "w") as f:
+            json.dump(results, f, indent=4)
+        print(f"{GREEN}[+] Results saved to report_results.json{RESET}")
+        input("\nPress Enter to continue...")
+    
+    def _report_number(self, phone_id: str) -> Dict:
+        """Internal method to report number"""
+        url = f"https://graph.facebook.com/{API_VERSION}/{phone_id}/report"
+        
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "reason": "spam",
+            "description": "Samhax BAN TOOL - Spam detection"
+        }
+        
+        try:
+            proxy = self.proxy_manager.get_next()
+            if not proxy:
+                return {"error": "No proxies available"}
+                
+            response = requests.post(
+                url,
+                headers=headers,
+                json=data,
+                proxies=proxy,
+                timeout=30
+            )
+            
+            return {
+                "phone_id": phone_id,
+                "status_code": response.status_code,
+                "success": response.status_code == 200,
+                "response": response.json() if response.status_code == 200 else response.text
+            }
+        except Exception as e:
+            return {
+                "phone_id": phone_id,
+                "error": str(e)
+            }
+    
+    def exit_tool(self):
+        """Exit tool"""
+        print(f"{GREEN}[+] Thank you for using rD4DDY SAMHAX BAN TOOL{RESET}")
+        sys.exit(0)
+    
+    def run(self):
+        """Main menu loop"""
+        while True:
+            self.show_menu()
+            choice = input().strip()
+            
+            if choice in self.options:
+                _, func = self.options[choice]
+                func()
+            else:
+                print(f"{RED}[-] Invalid option{RESET}")
+                time.sleep(1)
 
-def main():
-    parser = argparse.ArgumentParser(description='WhatsApp Group Spammer')
-    subparsers = parser.add_subparsers(dest='command', help='Command to run')
-    
-    # Set phone number command
-    phone_parser = subparsers.add_parser('phone', help='Set phone number')
-    phone_parser.add_argument('phone_number', help='Your WhatsApp phone number')
-    
-    # Set schedule command
-    sched_parser = subparsers.add_parser('schedule', help='Set spam schedule')
-    sched_parser.add_argument('--delay', type=int, default=30, help='Delay between messages (seconds)')
-    sched_parser.add_argument('--no-repeat', action='store_true', help='Don\'t repeat')
-    sched_parser.add_argument('--interval', type=int, default=3600, help='Interval between cycles (seconds)')
-    sched_parser.add_argument('--random', action='store_true', help='Send random messages')
-    sched_parser.add_argument('--max-messages', type=int, default=100, help='Maximum messages per target')
-    
-    # Start command
-    start_parser = subparsers.add_parser('start', help='Start spamming')
-    
-    # Stop command
-    stop_parser = subparsers.add_parser('stop', help='Stop spamming')
-    
-    args = parser.parse_args()
-    spammer = WhatsAppGroupSpammer()
-    
-    if args.command == 'phone':
-        spammer.set_phone_number(args.phone_number)
-    elif args.command == 'schedule':
-        spammer.set_schedule(
-            delay=args.delay,
-            repeating=not args.no_repeat,
-            interval=args.interval,
-            random_messages=args.random,
-            max_messages=args.max_messages
-        )
-    elif args.command == 'start':
-        spammer.start_spam()
-    elif args.command == 'stop':
-        spammer.stop_spam()
-    else:
-        parser.print_help()
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    menu = MenuSystem()
+    menu.run()
