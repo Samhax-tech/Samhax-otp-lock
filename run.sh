@@ -31,4 +31,4 @@ if [ ! -f "phones.txt" ]; then
 fi
 
 echo "[+] Starting main tool..."
-python3 rD4DDY.py "$@"
+python3 spam.py "$@"
