@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/python3
-# rD4DDY SAMHAX BAN TOOL v2.0
+# rD4DDY SAMHAX BAN TOOL v2.1
 # Owner: Samhax
 
 import os
@@ -22,25 +22,7 @@ RESET = "\033[0m"
 
 # Global constants
 API_VERSION = "v19.0"
-
-def clear_screen():
-    """Clear terminal screen"""
-    os.system('clear')
-
-def banner():
-    """Display tool banner"""
-    clear_screen()
-    print(f"""
-{RED}
-╔═════════════════════════════════════════════════╗
-║                                                 ║
-║           rD4DDY SAMHAX BAN TOOL v2.0          ║
-║                                                 ║
-║           Owner: Samhax                         ║
-║                                                 ║
-╚═════════════════════════════════════════════════╝
-{RESET}
-""")
+DEFAULT_ACCESS_TOKEN = "EAA9FWFF6O1gBQD5bT9wvta6qnag6ZBZAj53JZCKHYY9ZAuBr731UKBXCVgZAZCLAzibZAkzZCaF4t1UEFZC298dKVXrpfj2X3zZByyfg25a9hdfxUnGWmPppTRQWrrup4Bg2jCBXJ6BrzK3amhvOBwi20icYj8tr0sNDJeTnn6Ox5i3M5iN9WTVvmI8Pc7nGIGTwZDZD"
 
 class ProxyManager:
     def __init__(self):
@@ -86,7 +68,7 @@ class ProxyManager:
 class MenuSystem:
     def __init__(self):
         self.proxy_manager = ProxyManager()
-        self.access_token = ""
+        self.access_token = DEFAULT_ACCESS_TOKEN
         self.phone_numbers = []
         self.options = {
             "1": ("Check Number Status", self.check_number_status),
@@ -94,8 +76,7 @@ class MenuSystem:
             "3": ("Mass Report Numbers", self.mass_report_numbers),
             "4": ("Load Proxies", self.load_proxies),
             "5": ("Load Phone Numbers", self.load_phone_numbers),
-            "6": ("Set Access Token", self.set_access_token),
-            "7": ("Show Settings", self.show_settings),
+            "6": ("Show Settings", self.show_settings),
             "0": ("Exit", self.exit_tool)
         }
     
@@ -121,11 +102,6 @@ class MenuSystem:
             print(f"{GREEN}[+] Loaded {len(self.phone_numbers)} phone numbers{RESET}")
         except Exception as e:
             print(f"{RED}[-] Error loading phone numbers: {e}{RESET}")
-    
-    def set_access_token(self):
-        """Set access token"""
-        self.access_token = input("Enter access token: ")
-        print(f"{GREEN}[+] Access token set{RESET}")
     
     def show_settings(self):
         """Show current settings"""
@@ -209,29 +185,34 @@ class MenuSystem:
         input("\nPress Enter to continue...")
     
     def mass_report_numbers(self):
-        """Mass report numbers"""
+        """Mass report numbers with configurable iterations"""
         if not self.phone_numbers:
             print(f"{RED}[-] No phone numbers loaded{RESET}")
             return
             
+        iterations = int(input("Enter number of iterations (default 5): ") or "5")
         delay = float(input("Enter delay between requests (seconds): ") or "1.0")
         
-        print(f"{BLUE}[+] Starting mass report of {len(self.phone_numbers)} numbers{RESET}")
+        print(f"{BLUE}[+] Starting mass report with {iterations} iterations{RESET}")
         results = []
         
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
-            for phone_id in self.phone_numbers:
-                future = executor.submit(self._report_number, phone_id)
-                futures.append((future, phone_id))
-                
-                # Add delay between requests
-                time.sleep(delay)
+            for i in range(iterations):
+                for phone_id in self.phone_numbers:
+                    future = executor.submit(self._report_number, phone_id)
+                    futures.append((future, phone_id, i+1))
+                    
+                    # Add delay between requests
+                    time.sleep(delay)
             
-            for future, phone_id in futures:
+            for future, phone_id, iteration in futures:
                 result = future.result()
-                results.append(result)
-                print(f"{BLUE}[+] Reported {phone_id}: {'Success' if result.get('success') else 'Failed'}{RESET}")
+                results.append({
+                    **result,
+                    "iteration": iteration
+                })
+                print(f"{BLUE}[{iteration}/{iterations}] Reported {phone_id}: {'Success' if result.get('success') else 'Failed'}{RESET}")
         
         # Save results
         with open("report_results.json", "w") as f:
