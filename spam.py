@@ -33,7 +33,7 @@ def banner():
 ╚════██║██╔══██║██║╚██╔╝██║██╔══██║██╔══██║ ██╔██╗ 
 ███████║██║  ██║██║ ╚═╝ ██║██║  ██║██║  ██║██╔╝ ██╗
 ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
-{BLUE}          rD4DDY SAMHAX BAN TOOL v2.1{RESET}
+{BLUE}          D4DDY SAMHAX BAN TOOL v2.1{RESET}
 {YELLOW}       FIXED FOR WHATSAPP BUSINESS API{RESET}
     """)
 
